@@ -1,0 +1,30 @@
+<idea-plugin>
+    <id>com.example.datagrip.rowjsonviewer</id>
+    <name>Row Json Viewer</name>
+    <vendor email="dev@example.com">Local Dev</vendor>
+    <description><![CDATA[
+        Show selected DataGrip result row as formatted vertical JSON with search and copy.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.database</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="Row Json Viewer" displayType="BALLOON" isLogByDefault="true" />
+        <toolWindow id="Row JSON"
+                    anchor="right"
+                    factoryClass="com.example.datagripjson.RowJsonToolWindowFactory"
+                    canCloseContents="false"/>
+        <projectService serviceImplementation="com.example.datagripjson.RowJsonViewState"/>
+    </extensions>
+
+    <actions>
+        <action id="com.example.datagripjson.ShowCurrentRowAsJsonAction"
+                class="com.example.datagripjson.ShowCurrentRowAsJsonAction"
+                text="Show Current Row As JSON"
+                description="Extract selected row and show as formatted JSON">
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="Console.TableResult.PopupGroup" anchor="last"/>
+        </action>
+    </actions>
+</idea-plugin>
