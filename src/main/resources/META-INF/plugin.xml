@@ -1,5 +1,5 @@
 <idea-plugin>
-    <id>com.example.datagrip.rowjsonviewer</id>
+    <id>io.github.cloud9527.rowjsonviewer</id>
     <name>Row Json Viewer</name>
     <vendor email="dev@example.com">Local Dev</vendor>
     <description><![CDATA[

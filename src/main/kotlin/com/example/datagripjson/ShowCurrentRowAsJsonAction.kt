@@ -27,10 +27,9 @@ class ShowCurrentRowAsJsonAction : AnAction(), DumbAware {
             return
         }
 
-        val json = JsonFormatter.format(rowData)
         val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Row JSON")
         toolWindow?.show {
-            state.panel?.setJson(json)
+            state.panel?.setRowData(rowData)
         }
     }
 

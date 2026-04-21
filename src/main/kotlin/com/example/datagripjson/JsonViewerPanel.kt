@@ -1,33 +1,35 @@
 package com.example.datagripjson
 
+import com.intellij.icons.AllIcons
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.ide.CopyPasteManager
 import com.intellij.openapi.project.Project
 import com.intellij.ui.JBColor
+import com.intellij.ui.SearchTextField
 import com.intellij.util.ui.JBUI
 import java.awt.BorderLayout
 import java.awt.Dimension
+import java.awt.FlowLayout
 import java.awt.Font
 import java.awt.datatransfer.StringSelection
+import javax.swing.Icon
 import javax.swing.JButton
-import javax.swing.JLabel
+import javax.swing.JCheckBox
 import javax.swing.JPanel
 import javax.swing.JScrollPane
 import javax.swing.JTextArea
-import javax.swing.JTextField
 import javax.swing.event.DocumentEvent
 import javax.swing.event.DocumentListener
 import javax.swing.text.DefaultHighlighter
 
 class JsonViewerPanel(private val project: Project) : JPanel(BorderLayout()) {
     private val textArea = JTextArea()
-    private val searchField = JTextField()
-    private val resultLabel = JLabel("No matches")
+    private val searchField = SearchTextField(false)
+    private val showCommentsCheckBox = JCheckBox("Show Comments", true)
     private val highlighterPainter = DefaultHighlighter.DefaultHighlightPainter(JBColor(0xFFF59D, 0x665C00))
-
     private val matchOffsets = mutableListOf<IntRange>()
-    private var currentMatchIndex = -1
+    private var currentData: RowExtractedData? = null
 
     init {
         border = JBUI.Borders.empty(8)
@@ -35,92 +37,78 @@ class JsonViewerPanel(private val project: Project) : JPanel(BorderLayout()) {
         textArea.isEditable = false
         textArea.font = Font(Font.MONOSPACED, Font.PLAIN, 14)
         textArea.lineWrap = false
-        textArea.text = "Click 'Refresh Row' after selecting one row in the result grid."
+        textArea.text = "Select one row in the result grid to view JSON."
 
         add(buildToolbar(), BorderLayout.NORTH)
         add(JScrollPane(textArea), BorderLayout.CENTER)
     }
 
-    fun setJson(json: String) {
-        textArea.text = json
+    fun setRowData(data: RowExtractedData) {
+        currentData = data
+        renderCurrentData()
+    }
+
+    private fun renderCurrentData() {
+        val data = currentData ?: return
+        val rendered = JsonFormatter.format(
+            rowData = data.values,
+            comments = data.comments,
+            showComments = showCommentsCheckBox.isSelected
+        )
+        textArea.text = rendered
         textArea.caretPosition = 0
         refreshSearch()
     }
 
     private fun buildToolbar(): JPanel {
-        val toolbar = JPanel(BorderLayout(8, 0))
+        val toolbar = JPanel(BorderLayout())
+        val actions = JPanel(FlowLayout(FlowLayout.LEFT, JBUI.scale(6), 0))
 
-        val actions = JPanel()
-        val refreshButton = JButton("Refresh Row")
-        refreshButton.addActionListener {
-            val state = RowJsonViewState.getInstance(project)
-            val trackedGrid = CurrentRowExtractor.findDataGrid(state.trackedFocusComponent())
-            if (trackedGrid != null) {
-                state.lastActiveGrid = trackedGrid
-            }
-            val rowData = CurrentRowExtractor.extractFromGrid(state.lastActiveGrid)
-                ?: CurrentRowExtractor.extractFromCurrentFocus()
-            if (rowData == null) {
-                notifyWarning("No selected row detected. Select a row first.")
-                return@addActionListener
-            }
-            setJson(JsonFormatter.format(rowData))
-        }
-
-        val copyButton = JButton("Copy JSON")
-        copyButton.addActionListener {
+        val copyButton = createToolbarIconButton(
+            icon = AllIcons.Actions.Copy,
+            toolTip = "Copy JSON"
+        ) {
             CopyPasteManager.getInstance().setContents(StringSelection(textArea.text))
             notifyInfo("JSON copied")
         }
 
-        actions.add(refreshButton)
-        actions.add(copyButton)
-
-        val searchPanel = JPanel(BorderLayout(6, 0))
-        val prevButton = JButton("Prev")
-        val nextButton = JButton("Next")
-
-        prevButton.addActionListener { jumpToMatch(-1) }
-        nextButton.addActionListener { jumpToMatch(1) }
-
-        searchField.toolTipText = "Search in JSON text"
         val fieldHeight = copyButton.preferredSize.height
-        searchField.preferredSize = Dimension(220, fieldHeight)
-        searchField.minimumSize = Dimension(120, fieldHeight)
-        searchField.document.addDocumentListener(object : DocumentListener {
+        searchField.toolTipText = "Search in JSON text"
+        searchField.textEditor.preferredSize = Dimension(150, fieldHeight)
+        searchField.textEditor.minimumSize = Dimension(110, fieldHeight)
+        searchField.textEditor.document.addDocumentListener(object : DocumentListener {
             override fun insertUpdate(e: DocumentEvent?) = refreshSearch()
             override fun removeUpdate(e: DocumentEvent?) = refreshSearch()
             override fun changedUpdate(e: DocumentEvent?) = refreshSearch()
         })
 
-        searchPanel.add(searchField, BorderLayout.CENTER)
-        val nav = JPanel()
-        nav.add(prevButton)
-        nav.add(nextButton)
-        nav.add(resultLabel)
-        searchPanel.add(nav, BorderLayout.EAST)
+        showCommentsCheckBox.isOpaque = false
+        showCommentsCheckBox.toolTipText = "Toggle field comments"
+        showCommentsCheckBox.addActionListener {
+            renderCurrentData()
+        }
+
+        actions.add(copyButton)
+        actions.add(searchField)
+        actions.add(showCommentsCheckBox)
 
         toolbar.add(actions, BorderLayout.WEST)
-        toolbar.add(searchPanel, BorderLayout.CENTER)
         return toolbar
     }
 
     private fun refreshSearch() {
-        val query = searchField.text
+        val query = searchField.text.trim()
         val content = textArea.text
 
         textArea.highlighter.removeAllHighlights()
         matchOffsets.clear()
-        currentMatchIndex = -1
 
         if (query.isBlank() || content.isEmpty()) {
-            resultLabel.text = "No matches"
             return
         }
 
         val target = content.lowercase()
         val keyword = query.lowercase()
-
         var start = 0
         while (start < target.length) {
             val index = target.indexOf(keyword, start)
@@ -133,26 +121,9 @@ class JsonViewerPanel(private val project: Project) : JPanel(BorderLayout()) {
             start = index + keyword.length
         }
 
-        if (matchOffsets.isEmpty()) {
-            resultLabel.text = "0 matches"
-            return
+        if (matchOffsets.isNotEmpty()) {
+            revealMatch(0)
         }
-
-        currentMatchIndex = 0
-        revealMatch(currentMatchIndex)
-    }
-
-    private fun jumpToMatch(direction: Int) {
-        if (matchOffsets.isEmpty()) {
-            return
-        }
-
-        currentMatchIndex = if (direction > 0) {
-            (currentMatchIndex + 1) % matchOffsets.size
-        } else {
-            (currentMatchIndex - 1 + matchOffsets.size) % matchOffsets.size
-        }
-        revealMatch(currentMatchIndex)
     }
 
     private fun revealMatch(index: Int) {
@@ -163,7 +134,6 @@ class JsonViewerPanel(private val project: Project) : JPanel(BorderLayout()) {
         val range = matchOffsets[index]
         textArea.caretPosition = range.first
         textArea.select(range.first, range.last + 1)
-        resultLabel.text = "${index + 1}/${matchOffsets.size}"
     }
 
     private fun notifyInfo(content: String) {
@@ -173,10 +143,20 @@ class JsonViewerPanel(private val project: Project) : JPanel(BorderLayout()) {
             .notify(project)
     }
 
-    private fun notifyWarning(content: String) {
-        NotificationGroupManager.getInstance()
-            .getNotificationGroup("Row Json Viewer")
-            .createNotification(content, NotificationType.WARNING)
-            .notify(project)
+    private fun createToolbarIconButton(
+        icon: Icon,
+        toolTip: String,
+        action: () -> Unit
+    ): JButton {
+        val button = JButton(icon)
+        button.toolTipText = toolTip
+        button.isFocusable = false
+        button.border = JBUI.Borders.empty()
+        button.isBorderPainted = false
+        button.isContentAreaFilled = false
+        button.isOpaque = false
+        button.margin = JBUI.emptyInsets()
+        button.addActionListener { action() }
+        return button
     }
 }

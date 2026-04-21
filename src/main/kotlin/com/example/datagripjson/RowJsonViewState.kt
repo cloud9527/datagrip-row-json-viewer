@@ -76,8 +76,8 @@ class RowJsonViewState(project: Project) {
     }
 
     private fun pushCurrentSelection() {
-        val json = CurrentRowExtractor.extractFromGrid(lastActiveGrid)?.let(JsonFormatter::format) ?: return
-        panel?.setJson(json)
+        val data = CurrentRowExtractor.extractFromGrid(lastActiveGrid) ?: return
+        panel?.setRowData(data)
     }
 
     private fun attachGridListener(dataGrid: DataGrid) {
