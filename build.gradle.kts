@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.example"
-version = "2.0.0"
+version = "2.1.0"
 
 repositories {
     mavenCentral()
@@ -24,24 +24,33 @@ dependencies {
     }
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
-
 kotlin {
+    jvmToolchain(25)
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
+        freeCompilerArgs.add("-Xjdk-release=17")
+    }
+}
+
+tasks {
+    withType<JavaCompile>().configureEach {
+        options.release.set(17)
     }
 }
 
 intellijPlatform {
     pluginConfiguration {
         ideaVersion {
-            sinceBuild.set("252")
-            untilBuild.set("252.*")
+            sinceBuild.set("241")
+            untilBuild.set("263.*")
         }
     }
 
     buildSearchableOptions.set(false)
+
+    publishing {
+        token.set(providers.environmentVariable("marketplaceToken")
+            .orElse(providers.gradleProperty("marketplaceToken")))
+        channels.add("default")
+    }
 }

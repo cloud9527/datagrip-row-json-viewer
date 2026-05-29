@@ -1,10 +1,26 @@
 <idea-plugin>
     <id>io.github.cloud9527.rowjsonviewer</id>
     <name>Row Json Viewer</name>
-    <vendor email="dev@example.com">Local Dev</vendor>
+    <vendor email="cloud9527@gmail.com">cloud9527</vendor>
     <description><![CDATA[
         Show selected DataGrip result row as formatted vertical JSON with search and copy.
+        <p>Features:</p>
+        <ul>
+            <li>Display selected row as formatted, readable JSON</li>
+            <li>Search through JSON content</li>
+            <li>One-click copy JSON to clipboard</li>
+            <li>Expand/collapse JSON nodes</li>
+            <li>Support for DataGrip 2024.1 - 2026.3</li>
+        </ul>
     ]]></description>
+    <change-notes><![CDATA[
+        <ul>
+            <li>v2.1.0 - Enhanced version compatibility support for DataGrip 2024.1 - 2026.3</li>
+            <li>v2.0.0 - Support for DataGrip 2024.1 - 2026.3</li>
+            <li>v1.0.0 - Initial release</li>
+        </ul>
+    ]]></change-notes>
+    <idea-version since-build="241" until-build="263.*"/>
 
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.database</depends>
